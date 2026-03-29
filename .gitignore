@@ -32,6 +32,16 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
+
+# Rust engine
+/engine/target/
+
+# Hardhat / Smart Contracts
+/contracts/node_modules/
+/contracts/cache/
+/contracts/artifacts/
+/contracts/deployments/
 
 # vercel
 .vercel

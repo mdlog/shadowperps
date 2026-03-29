@@ -1,0 +1,29 @@
+{
+  "name": "shadowperps-contracts",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "deploy:arb-sepolia": "hardhat deploy --network arbSepolia",
+    "deploy:privacy:arb-sepolia": "hardhat run scripts/deploy-privacy-ready.ts --network arbSepolia",
+    "deploy:sepolia": "hardhat deploy --network sepolia",
+    "deploy:local": "hardhat deploy --network localhost",
+    "node": "hardhat node",
+    "clean": "hardhat clean"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "hardhat": "^2.22.0",
+    "hardhat-deploy": "^0.14.0",
+    "cofhe-hardhat-plugin": "^0.3.1",
+    "typescript": "^5.4.0",
+    "ts-node": "^10.9.0",
+    "@types/node": "^20.0.0",
+    "dotenv": "^16.4.0"
+  },
+  "dependencies": {
+    "@fhenixprotocol/cofhe-contracts": "^0.1.3",
+    "@openzeppelin/contracts": "^5.1.0"
+  }
+}
