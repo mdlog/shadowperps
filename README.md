@@ -281,6 +281,7 @@ To verify an order really used FHE:
 
 ## Related Docs
 
+- [VERCEL_DEPLOY.md](./VERCEL_DEPLOY.md)
 - [SHADOWPOOL_PRIVACY_READY.md](./SHADOWPOOL_PRIVACY_READY.md)
 - [SUBMISSION.md](./SUBMISSION.md)
 

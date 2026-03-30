@@ -2,7 +2,25 @@
 //  Rust Engine REST API Client
 // ══════════════════════════════════════════════
 
-export const ENGINE_URL = process.env.NEXT_PUBLIC_ENGINE_URL || "http://localhost:3010";
+const DEFAULT_ENGINE_URL = "http://localhost:3010";
+
+function resolveEngineUrl() {
+  const configuredUrl = process.env.NEXT_PUBLIC_ENGINE_URL?.trim();
+
+  if (configuredUrl) {
+    return configuredUrl.replace(/\/$/, "");
+  }
+
+  if (process.env.NODE_ENV !== "production") {
+    return DEFAULT_ENGINE_URL;
+  }
+
+  throw new Error(
+    "NEXT_PUBLIC_ENGINE_URL is required for production builds. Point it to a public engine URL before deploying the frontend.",
+  );
+}
+
+export const ENGINE_URL = resolveEngineUrl();
 
 // Types matching the Rust engine
 export interface Candle {
