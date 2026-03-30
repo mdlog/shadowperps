@@ -2,6 +2,7 @@
 
 import { type ReactNode, useState } from "react";
 import dynamic from "next/dynamic";
+import { usePathname } from "next/navigation";
 import { WagmiProvider } from "wagmi";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { wagmiConfig } from "@/lib/wagmi";
@@ -12,6 +13,7 @@ const CofheReactProvider = dynamic(
 );
 
 export default function Web3Provider({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
   const [queryClient] = useState(
     () =>
       new QueryClient({
@@ -23,13 +25,19 @@ export default function Web3Provider({ children }: { children: ReactNode }) {
         },
       }),
   );
+  const needsCofheProvider =
+    pathname === "/trade" || pathname === "/portfolio" || pathname === "/pool";
 
   return (
     <WagmiProvider config={wagmiConfig}>
       <QueryClientProvider client={queryClient}>
-        <CofheReactProvider>
-          {children}
-        </CofheReactProvider>
+        {needsCofheProvider ? (
+          <CofheReactProvider>
+            {children}
+          </CofheReactProvider>
+        ) : (
+          children
+        )}
       </QueryClientProvider>
     </WagmiProvider>
   );
