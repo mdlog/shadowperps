@@ -49,3 +49,13 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# RFC and submission documents (private)
+RFC_FULL_PRIVATE_POOL_ARCHITECTURE.md
+RFC_TOP3_PRIVACY_ROADMAP.md
+RFC_TRADINGVIEW_CHART_MIGRATION.md
+SHADOWPOOL_PRIVACY_READY.md
+SUBMISSION.md
+WAVE_FORM_RESPONSES.md
+WAVE1_SCOPE.md
+WAVE1_SUBMISSION.md
