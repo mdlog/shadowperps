@@ -59,3 +59,8 @@ SUBMISSION.md
 WAVE_FORM_RESPONSES.md
 WAVE1_SCOPE.md
 WAVE1_SUBMISSION.md
+
+# Agent configuration files (private)
+.codex
+CLAUDE.md
+AGENTS.md
