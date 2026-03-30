@@ -52,11 +52,7 @@ export default function Navbar() {
         <nav className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-3 group">
-            <div className="relative w-8 h-8">
-              <div className="absolute inset-0 rounded-lg bg-accent/10 border border-accent/20 group-hover:bg-accent/15 transition-colors duration-300" />
-              <div className="absolute inset-[6px] rounded-sm bg-accent/30 group-hover:bg-accent/40 transition-colors duration-300" />
-              <div className="absolute inset-[10px] rounded-[2px] bg-accent group-hover:shadow-[0_0_12px_rgba(62,207,142,0.4)] transition-all duration-300" />
-            </div>
+            <img src="/logo.png" alt="ShadowPerps" className="w-8 h-8 rounded-lg object-contain" />
             <span className="font-display text-xl font-semibold tracking-tight text-text-primary">
               Shadow<span className="text-accent">Perps</span>
             </span>

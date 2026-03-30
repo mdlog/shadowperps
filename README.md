@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="logo.png" alt="ShadowPerps" width="120" />
+</p>
+
 # ShadowPerps
 
 Confidential perpetual trading prototype on Arbitrum Sepolia using Fhenix CoFHE.

@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { formatUnits } from "viem";
 import { useAccount, useChainId, usePublicClient, useWalletClient } from "wagmi";
 import { CONTRACT_ADDRESSES, PRICE_ORACLE_ABI, SHADOW_PERPS_ABI } from "@/lib/contracts";
-import { decryptForView } from "@/lib/fhenix";
+import { useCofheHelpers } from "@/lib/fhenix";
 import { defaultChain } from "@/lib/wagmi";
 
 const USDC_DECIMALS = 6;
@@ -140,6 +140,7 @@ export function useOnChainPortfolio() {
   const chainId = useChainId();
   const publicClient = usePublicClient();
   const { data: walletClient } = useWalletClient();
+  const { decryptForView } = useCofheHelpers();
 
   const contractAddress = CONTRACT_ADDRESSES.shadowPerps;
   const oracleAddress = CONTRACT_ADDRESSES.priceOracle;

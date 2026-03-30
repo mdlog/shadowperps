@@ -1,49 +1,16 @@
 "use client";
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+import { useCallback } from "react";
+import { Encryptable, FheTypes, type EncryptableItem, type EncryptedItemInput } from "@cofhe/sdk";
+import { useCofheClient, useCofheConnection, useCofheEncrypt } from "@cofhe/react";
+import type { PublicClient, WalletClient } from "viem";
 
-/**
- * CoFHE SDK stub — SDK is loaded at runtime only when needed.
- * No static imports to avoid Turbopack bundling the heavy WASM.
- */
-
-let cofheClient: any = null;
-let cofheConnectionKey: string | null = null;
 const DECRYPT_428_RETRY_DELAYS_MS = [1500, 3000, 5000, 8000, 12000, 16000];
 
-function getCofheProxyBaseUrl() {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  return window.location.origin;
-}
-
-function getConnectionKey(publicClient: any, walletClient: any): string {
-  const chainId = publicClient?.chain?.id ?? "unknown-chain";
-  const account = walletClient?.account?.address?.toLowerCase?.() ?? "unknown-account";
-  return `${chainId}:${account}`;
-}
+type FhenixInputValue = { type: string; value: bigint | boolean };
 
 function isDecrypt428Error(error: unknown): boolean {
-  if (!(error instanceof Error)) {
-    return false;
-  }
-
-  return error.message.includes("HTTP 428");
-}
-
-async function ensureSelfPermit(client: any, publicClient: any, walletClient: any, forceRefresh = false) {
-  if (forceRefresh) {
-    const chainId = await publicClient.getChainId();
-    const account = walletClient.account?.address;
-
-    if (account) {
-      await client.permits.removeActivePermit(chainId, account);
-    }
-  }
-
-  return await client.permits.getOrCreateSelfPermit();
+  return error instanceof Error && error.message.includes("HTTP 428");
 }
 
 function sleep(ms: number) {
@@ -62,140 +29,156 @@ function normalizeCofheError(error: unknown): Error {
   if (isBrowserFetchFailure) {
     return new Error(
       "CoFHE verifier request failed. The browser could not reach the verifier service. " +
-        "This app now uses a local /api/cofhe proxy, so if this persists check that `npm run dev` is running cleanly and your network can reach the Fhenix testnet services."
+        "This app now uses a local /api/cofhe proxy, so if this persists check that `npm run dev` is running cleanly and your network can reach the Fhenix testnet services.",
     );
   }
 
   return error;
 }
 
-async function loadSDK() {
-  // Dynamic import only triggered at runtime when user clicks trade
-  const [core, web, chains] = await Promise.all([
-    import("@cofhe/sdk"),
-    import("@cofhe/sdk/web"),
-    import("@cofhe/sdk/chains"),
-  ]);
-  return { core, web, chains };
-}
-
-export async function getCofheClient(publicClient: any, walletClient: any): Promise<any> {
-  const nextConnectionKey = getConnectionKey(publicClient, walletClient);
-
-  if (!cofheClient || cofheConnectionKey !== nextConnectionKey) {
-    const sdk = await loadSDK();
-    const proxyBaseUrl = getCofheProxyBaseUrl();
-    const arbSepoliaChain = proxyBaseUrl
-      ? {
-          ...sdk.chains.arbSepolia,
-          coFheUrl: `${proxyBaseUrl}/api/cofhe/cofhe`,
-          verifierUrl: `${proxyBaseUrl}/api/cofhe/verifier`,
-          thresholdNetworkUrl: `${proxyBaseUrl}/api/cofhe/threshold`,
-        }
-      : sdk.chains.arbSepolia;
-    const config = sdk.web.createCofheConfig({
-      supportedChains: [arbSepoliaChain],
-      // Disable default cross-origin iframe-backed storage.
-      // Some browsers, extensions, or network policies block the storage hub,
-      // which causes "Failed to rehydrate keys store" timeouts before encrypt starts.
-      fheKeyStorage: null,
-    });
-    cofheClient = sdk.web.createCofheClient(config);
-    await cofheClient.connect(publicClient, walletClient);
-    cofheConnectionKey = nextConnectionKey;
-  }
-  return cofheClient;
-}
-
-export async function encryptInputs(
-  publicClient: any,
-  walletClient: any,
-  values: { type: string; value: bigint | boolean }[],
-): Promise<any[]> {
-  try {
-    const sdk = await loadSDK();
-    const client = await getCofheClient(publicClient, walletClient);
-
-    const encryptables = values.map((v) => {
-      const E = sdk.core.Encryptable;
-      switch (v.type) {
-        case "bool": return E.bool(Boolean(v.value));
-        case "uint64": return E.uint64(v.value as bigint);
-        case "uint32": return E.uint32(v.value as bigint);
-        case "uint128": return E.uint128(v.value as bigint);
-        default: return E.uint64(v.value as bigint);
-      }
-    });
-
-    return await client.encryptInputs(encryptables).execute();
-  } catch (error) {
-    throw normalizeCofheError(error);
+function toEncryptable(value: FhenixInputValue): EncryptableItem {
+  switch (value.type) {
+    case "bool":
+      return Encryptable.bool(Boolean(value.value));
+    case "uint32":
+      return Encryptable.uint32(value.value as bigint);
+    case "uint64":
+      return Encryptable.uint64(value.value as bigint);
+    case "uint128":
+      return Encryptable.uint128(value.value as bigint);
+    default:
+      return Encryptable.uint64(value.value as bigint);
   }
 }
 
-export async function decryptForView(
-  publicClient: any,
-  walletClient: any,
-  ctHash: string,
-  fheType: string,
-): Promise<bigint | boolean> {
-  try {
-    const sdk = await loadSDK();
-    const client = await getCofheClient(publicClient, walletClient);
-    await ensureSelfPermit(client, publicClient, walletClient);
-
-    const typeMap: Record<string, any> = {
-      bool: sdk.core.FheTypes?.Bool ?? 0,
-      uint64: sdk.core.FheTypes?.Uint64 ?? 5,
-      uint32: sdk.core.FheTypes?.Uint32 ?? 3,
-      uint128: sdk.core.FheTypes?.Uint128 ?? 6,
-    };
-
-    return await client
-      .decryptForView(ctHash, typeMap[fheType] ?? typeMap.uint64)
-      .execute();
-  } catch (error) {
-    throw normalizeCofheError(error);
+function getFheType(fheType: string) {
+  switch (fheType) {
+    case "bool":
+      return FheTypes.Bool;
+    case "uint32":
+      return FheTypes.Uint32;
+    case "uint128":
+      return FheTypes.Uint128;
+    default:
+      return FheTypes.Uint64;
   }
 }
 
-export async function decryptForTx(
-  publicClient: any,
-  walletClient: any,
-  ctHash: string,
-  usePermit = true,
-): Promise<{ decryptedValue: bigint; signature: `0x${string}` }> {
-  try {
-    const client = await getCofheClient(publicClient, walletClient);
-    if (usePermit) {
-      let lastError: unknown;
+export function useCofheHelpers() {
+  const client = useCofheClient();
+  const { connected, account, chainId } = useCofheConnection();
+  const encryption = useCofheEncrypt();
 
-      for (let attempt = 0; attempt <= DECRYPT_428_RETRY_DELAYS_MS.length; attempt++) {
-        try {
-          await ensureSelfPermit(client, publicClient, walletClient, attempt > 0);
-          return await client.decryptForTx(ctHash).withPermit().execute();
-        } catch (error) {
-          lastError = error;
+  const ensureConnected = useCallback(async (
+    publicClient?: PublicClient,
+    walletClient?: WalletClient,
+  ) => {
+    const nextChainId = walletClient?.chain?.id ?? publicClient?.chain?.id;
+    const nextAccount = walletClient?.account?.address?.toLowerCase();
+    const sameConnection =
+      connected &&
+      chainId === nextChainId &&
+      account?.toLowerCase() === nextAccount;
 
-          if (!isDecrypt428Error(error) || attempt === DECRYPT_428_RETRY_DELAYS_MS.length) {
-            throw error;
-          }
-
-          // Threshold Network can lag behind transaction receipts for heavier FHE computations.
-          await sleep(DECRYPT_428_RETRY_DELAYS_MS[attempt]);
-        }
-      }
-
-      throw lastError instanceof Error ? lastError : new Error("decryptForTx failed");
+    if (sameConnection) {
+      return;
     }
 
-    return await client.decryptForTx(ctHash).withoutPermit().execute();
-  } catch (error) {
-    throw normalizeCofheError(error);
-  }
-}
+    if (!publicClient || !walletClient) {
+      throw new Error("Wallet or CoFHE client not ready");
+    }
 
-export function resetCofheClient() {
-  cofheClient = null;
-  cofheConnectionKey = null;
+    await client.connect(publicClient, walletClient);
+  }, [account, chainId, client, connected]);
+
+  const ensureSelfPermit = useCallback(async (
+    publicClient?: PublicClient,
+    walletClient?: WalletClient,
+    forceRefresh = false,
+  ) => {
+    const currentChainId = publicClient?.chain?.id ?? walletClient?.chain?.id ?? chainId;
+    const currentAccount = walletClient?.account?.address ?? account;
+
+    if (forceRefresh && currentChainId && currentAccount) {
+      await client.permits.removeActivePermit(currentChainId, currentAccount);
+    }
+
+    return await client.permits.getOrCreateSelfPermit();
+  }, [account, chainId, client]);
+
+  const encryptInputs = useCallback(async (
+    publicClient: PublicClient,
+    walletClient: WalletClient,
+    values: FhenixInputValue[],
+  ): Promise<readonly EncryptedItemInput[]> => {
+    try {
+      await ensureConnected(publicClient, walletClient);
+      return await encryption.encryptInputsAsync({
+        items: values.map(toEncryptable),
+      });
+    } catch (error) {
+      throw normalizeCofheError(error);
+    }
+  }, [encryption, ensureConnected]);
+
+  const decryptForView = useCallback(async (
+    publicClient: PublicClient,
+    walletClient: WalletClient,
+    ctHash: string,
+    fheType: string,
+  ): Promise<bigint | boolean> => {
+    try {
+      await ensureConnected(publicClient, walletClient);
+      await ensureSelfPermit(publicClient, walletClient);
+
+      return await client.decryptForView(ctHash, getFheType(fheType)).execute();
+    } catch (error) {
+      throw normalizeCofheError(error);
+    }
+  }, [client, ensureConnected, ensureSelfPermit]);
+
+  const decryptForTx = useCallback(async (
+    publicClient: PublicClient,
+    walletClient: WalletClient,
+    ctHash: string,
+    usePermit = true,
+  ): Promise<{ decryptedValue: bigint; signature: `0x${string}` }> => {
+    try {
+      await ensureConnected(publicClient, walletClient);
+
+      if (usePermit) {
+        let lastError: unknown;
+
+        for (let attempt = 0; attempt <= DECRYPT_428_RETRY_DELAYS_MS.length; attempt++) {
+          try {
+            await ensureSelfPermit(publicClient, walletClient, attempt > 0);
+            return await client.decryptForTx(ctHash).withPermit().execute();
+          } catch (error) {
+            lastError = error;
+
+            if (!isDecrypt428Error(error) || attempt === DECRYPT_428_RETRY_DELAYS_MS.length) {
+              throw error;
+            }
+
+            await sleep(DECRYPT_428_RETRY_DELAYS_MS[attempt]);
+          }
+        }
+
+        throw lastError instanceof Error ? lastError : new Error("decryptForTx failed");
+      }
+
+      return await client.decryptForTx(ctHash).withoutPermit().execute();
+    } catch (error) {
+      throw normalizeCofheError(error);
+    }
+  }, [client, ensureConnected, ensureSelfPermit]);
+
+  return {
+    decryptForTx,
+    decryptForView,
+    encryptInputs,
+    encryptionStep: encryption.stepsState.lastStep,
+    isCofheReady: connected,
+    isEncrypting: encryption.isEncrypting,
+  };
 }

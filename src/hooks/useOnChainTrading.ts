@@ -4,7 +4,7 @@ import { useState, useCallback } from "react";
 import { useAccount, useWriteContract, usePublicClient, useWalletClient, useReadContract } from "wagmi";
 import { parseGwei, decodeEventLog } from "viem";
 import { SHADOW_PERPS_ABI, ERC20_ABI, CONTRACT_ADDRESSES } from "@/lib/contracts";
-import { encryptInputs, decryptForTx } from "@/lib/fhenix";
+import { useCofheHelpers } from "@/lib/fhenix";
 import { engineApi } from "@/lib/engine-api";
 
 async function getGasOverrides(publicClient: NonNullable<ReturnType<typeof usePublicClient>>) {
@@ -20,12 +20,12 @@ function usdToUsdc(amount: number): bigint {
   return BigInt(Math.round(amount * 10 ** USDC_DECIMALS));
 }
 
-function toEncryptedInput(input: { ctHash: bigint; securityZone: number; utype: number; signature: `0x${string}` }) {
+function toEncryptedInput(input: { ctHash: bigint; securityZone: number; utype: number; signature: string }) {
   return {
     ctHash: input.ctHash,
     securityZone: input.securityZone,
     utype: input.utype,
-    signature: input.signature,
+    signature: input.signature as `0x${string}`,
   } as const;
 }
 
@@ -67,6 +67,7 @@ export function useOnChainTrading() {
   const publicClient = usePublicClient();
   const { data: walletClient } = useWalletClient();
   const { writeContractAsync } = useWriteContract();
+  const { encryptInputs, decryptForTx } = useCofheHelpers();
   const [status, setStatus] = useState<TxStatus>("idle");
   const [error, setError] = useState<string | null>(null);
   const [txHash, setTxHash] = useState<`0x${string}` | null>(null);
@@ -192,7 +193,7 @@ export function useOnChainTrading() {
       setError(e instanceof Error ? e.message : "Transaction failed");
       throw e;
     }
-  }, [address, isOnChainReady, contractAddress, usdcAddress, writeContractAsync, publicClient, walletClient]);
+  }, [address, isOnChainReady, contractAddress, usdcAddress, writeContractAsync, publicClient, walletClient, decryptForTx, encryptInputs]);
 
   const closePosition = useCallback(async (positionId: number, onChainId?: number) => {
     if (!address) throw new Error("Wallet not connected");
@@ -286,7 +287,7 @@ export function useOnChainTrading() {
       setError(e instanceof Error ? e.message : "Transaction failed");
       throw e;
     }
-  }, [address, isOnChainReady, contractAddress, writeContractAsync, publicClient, walletClient]);
+  }, [address, isOnChainReady, contractAddress, writeContractAsync, publicClient, walletClient, decryptForTx]);
 
   const reset = useCallback(() => {
     setStatus("idle");
