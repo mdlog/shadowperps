@@ -43,7 +43,7 @@ Notes:
 
 Because `vercel.json` is included in the repo, Vercel will use:
 
-- `npm ci` for install
+- `npm ci --legacy-peer-deps` for install
 - `npx next build --webpack` for the build step
 
 We intentionally force **webpack** for Vercel production builds because this repo's Web3/FHE client stack has been more reliable there than the default Turbopack production path.
