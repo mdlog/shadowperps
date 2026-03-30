@@ -33,56 +33,65 @@ export default function PortfolioStats() {
         : isError
           ? (error instanceof Error ? error.message : "decrypt failed")
           : "wallet decrypted";
+  const healthLabel = marginHealth > 0.7 ? "Healthy" : marginHealth > 0.4 ? "Caution" : "Critical";
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="font-display text-2xl font-semibold tracking-tight text-text-primary">
-          Private Vault
-        </h1>
+        <div>
+          <h2 className="text-sm font-medium tracking-[0.18em] uppercase text-text-secondary">
+            Vault Snapshot
+          </h2>
+          <p className="mt-1 text-xs text-text-ghost">
+            Wallet-side summary of your decrypted on-chain portfolio.
+          </p>
+        </div>
         <PrivacyIndicator label="Your Eyes Only" />
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Total Value */}
-        <Card className="p-5">
-          <div className="text-[10px] font-medium tracking-widest uppercase text-text-tertiary mb-3">
-            Portfolio Value
-          </div>
-          {isLoading ? (
-            <div className="mb-1.5">
-              <EncryptedValue width="w-32" className="h-7" />
+        <Card className="h-full p-5 flex flex-col">
+          <div className="flex items-start justify-between gap-3 mb-3">
+            <div className="text-[10px] font-medium tracking-widest uppercase text-text-tertiary">
+              Portfolio Value
             </div>
-          ) : (
-            <div className="font-mono text-2xl font-medium text-text-primary tabular-nums mb-1.5">
-              {canShowValues ? formatCurrency(totalValue) : "—"}
-            </div>
-          )}
-          <div className="flex items-center gap-1.5">
             <span className="text-[10px] text-accent/60 tracking-wider uppercase">
               {statusText}
             </span>
           </div>
+          {isLoading ? (
+            <div className="mb-2">
+              <EncryptedValue width="w-32" className="h-7" />
+            </div>
+          ) : (
+            <div className="font-mono text-2xl font-medium text-text-primary tabular-nums mb-2">
+              {canShowValues ? formatCurrency(totalValue) : "—"}
+            </div>
+          )}
+          <div className="mt-auto text-[11px] text-text-ghost">
+            Gross value across all decrypted positions.
+          </div>
         </Card>
 
         {/* Total PnL */}
-        <Card className="p-5">
+        <Card className="h-full p-5 flex flex-col">
           <div className="text-[10px] font-medium tracking-widest uppercase text-text-tertiary mb-3">
             Unrealized PnL
           </div>
           {isLoading ? (
-            <div className="mb-1.5">
+            <div className="mb-2">
               <EncryptedValue width="w-28" className="h-7" />
             </div>
           ) : canShowValues ? (
             <>
               <div className={cn(
-                "font-mono text-2xl font-medium tabular-nums mb-1.5",
+                "font-mono text-2xl font-medium tabular-nums mb-2",
                 totalPnl >= 0 ? "text-long" : "text-short",
               )}>
                 {totalPnl >= 0 ? "+" : ""}{formatCurrency(totalPnl)}
               </div>
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 mb-2">
                 <span className={cn(
                   "text-xs font-mono tabular-nums",
                   totalPnlPct >= 0 ? "text-long/70" : "text-short/70",
@@ -93,29 +102,32 @@ export default function PortfolioStats() {
             </>
           ) : (
             <>
-              <div className="font-mono text-2xl font-medium text-text-ghost tabular-nums mb-1.5">
+              <div className="font-mono text-2xl font-medium text-text-ghost tabular-nums mb-2">
                 $0.00
               </div>
-              <div className="text-xs text-text-ghost">No data</div>
+              <div className="text-xs text-text-ghost mb-2">No data</div>
             </>
           )}
+          <div className="mt-auto text-[11px] text-text-ghost">
+            Based on live mark price from the synced on-chain oracle.
+          </div>
         </Card>
 
         {/* Collateral */}
-        <Card className="p-5">
+        <Card className="h-full p-5 flex flex-col">
           <div className="text-[10px] font-medium tracking-widest uppercase text-text-tertiary mb-3">
             Total Collateral
           </div>
           {isLoading ? (
-            <div className="mb-1.5">
+            <div className="mb-2">
               <EncryptedValue width="w-28" className="h-7" />
             </div>
           ) : (
-            <div className="font-mono text-2xl font-medium text-text-primary tabular-nums mb-1.5">
+            <div className="font-mono text-2xl font-medium text-text-primary tabular-nums mb-2">
               {canShowValues ? formatCurrency(totalCollateral) : "—"}
             </div>
           )}
-          <div className="flex items-center gap-1.5">
+          <div className="mt-auto flex items-center gap-1.5">
             <span className="text-[10px] text-accent/60 tracking-wider uppercase">
               {canShowValues ? "wallet decrypted" : statusText}
             </span>
@@ -123,11 +135,19 @@ export default function PortfolioStats() {
         </Card>
 
         {/* Margin Health */}
-        <Card className="p-5">
-          <div className="text-[10px] font-medium tracking-widest uppercase text-text-tertiary mb-3">
-            Margin Health
+        <Card className="h-full p-5 flex flex-col">
+          <div className="flex items-start justify-between gap-3 mb-3">
+            <div className="text-[10px] font-medium tracking-widest uppercase text-text-tertiary">
+              Margin Health
+            </div>
+            <span className={cn(
+              "text-[10px] tracking-wider uppercase",
+              marginHealth > 0.7 ? "text-long/70" : marginHealth > 0.4 ? "text-warning/70" : "text-short/70",
+            )}>
+              {healthLabel}
+            </span>
           </div>
-          <div className="flex items-center gap-3 mb-2">
+          <div className="flex items-center gap-3 mb-3">
             <div className="font-mono text-2xl font-medium text-text-primary tabular-nums">
               {canShowValues ? `${(marginHealth * 100).toFixed(0)}%` : "—"}
             </div>
@@ -141,7 +161,7 @@ export default function PortfolioStats() {
               style={{ width: `${marginHealth * 100}%` }}
             />
           </div>
-          <div className="flex justify-between mt-1.5">
+          <div className="mt-auto flex justify-between pt-1.5">
             <span className="text-[10px] text-text-ghost">Liquidation</span>
             <span className="text-[10px] text-text-ghost">Healthy</span>
           </div>

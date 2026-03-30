@@ -2,7 +2,7 @@
 //  Rust Engine REST API Client
 // ══════════════════════════════════════════════
 
-const ENGINE_URL = process.env.NEXT_PUBLIC_ENGINE_URL || "http://localhost:3010";
+export const ENGINE_URL = process.env.NEXT_PUBLIC_ENGINE_URL || "http://localhost:3010";
 
 // Types matching the Rust engine
 export interface Candle {
@@ -23,6 +23,13 @@ export interface Market {
   funding_rate: string;
   open_interest: string;
   last_updated: string;
+}
+
+export interface PriceStreamUpdate {
+  symbol: string;
+  price: string | number;
+  timestamp: string;
+  source: string;
 }
 
 export interface Position {

@@ -7,9 +7,14 @@ import { formatCurrency, cn } from "@/lib/constants";
 interface MarketSelectorProps {
   selectedMarket: string;
   onSelectMarket: (symbol: string) => void;
+  variant?: "card" | "inline";
 }
 
-export default function MarketSelector({ selectedMarket, onSelectMarket }: MarketSelectorProps) {
+export default function MarketSelector({
+  selectedMarket,
+  onSelectMarket,
+  variant = "card",
+}: MarketSelectorProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const { data: markets } = useMarkets();
@@ -18,6 +23,7 @@ export default function MarketSelector({ selectedMarket, onSelectMarket }: Marke
   const current = displayMarkets.find((m) => m.symbol === selectedMarket);
   const currentPrice = current ? parseFloat(current.price) : 0;
   const currentChange = current ? parseFloat(current.change_24h) : 0;
+  const isInline = variant === "inline";
 
   // Close on outside click
   useEffect(() => {
@@ -35,18 +41,30 @@ export default function MarketSelector({ selectedMarket, onSelectMarket }: Marke
 
   return (
     <div ref={ref} className="relative">
-      {/* Trigger button */}
       <button
         onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between gap-3 px-4 py-2.5 rounded-[var(--radius-card)] border border-border-subtle bg-surface hover:bg-elevated transition-colors"
+        className={cn(
+          "flex items-center justify-between gap-3 border border-border-subtle bg-surface hover:bg-elevated transition-colors",
+          isInline
+            ? "min-w-[170px] px-3 py-1.5 rounded-[var(--radius-pill)]"
+            : "w-full px-4 py-2.5 rounded-[var(--radius-card)]",
+        )}
       >
         <div className="flex items-center gap-3">
-          <div className={cn("w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold", iconColor(selectedMarket))}>
+          <div
+            className={cn(
+              "rounded-full flex items-center justify-center text-[10px] font-bold",
+              isInline ? "w-6 h-6" : "w-7 h-7",
+              iconColor(selectedMarket),
+            )}
+          >
             {current?.name?.[0] ?? "?"}
           </div>
           <div className="text-left">
-            <div className="text-sm font-medium text-text-primary">{selectedMarket}</div>
-            {currentPrice > 0 && (
+            <div className={cn("font-medium text-text-primary", isInline ? "text-xs" : "text-sm")}>
+              {selectedMarket}
+            </div>
+            {!isInline && currentPrice > 0 && (
               <div className="flex items-center gap-2">
                 <span className="text-xs font-mono text-text-secondary tabular-nums">{formatCurrency(currentPrice)}</span>
                 <span className={cn("text-[10px] font-mono tabular-nums", currentChange >= 0 ? "text-long" : "text-short")}>
@@ -65,7 +83,12 @@ export default function MarketSelector({ selectedMarket, onSelectMarket }: Marke
 
       {/* Dropdown */}
       {open && (
-        <div className="absolute z-50 top-full left-0 right-0 mt-1 rounded-[var(--radius-card)] border border-border-subtle bg-surface shadow-[var(--shadow-elevated)] overflow-hidden animate-fade-down">
+        <div
+          className={cn(
+            "absolute z-50 top-full mt-1 rounded-[var(--radius-card)] border border-border-subtle bg-surface shadow-[var(--shadow-elevated)] overflow-hidden animate-fade-down",
+            isInline ? "left-0 min-w-[240px]" : "left-0 right-0",
+          )}
+        >
           {displayMarkets.map((m) => {
             const price = parseFloat(m.price);
             const change = parseFloat(m.change_24h);

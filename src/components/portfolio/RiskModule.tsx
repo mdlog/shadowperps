@@ -6,6 +6,30 @@ import { cn, formatCurrency } from "@/lib/constants";
 import Card from "@/components/ui/Card";
 import EncryptedValue from "@/components/ui/EncryptedValue";
 
+function InfoRow({
+  label,
+  value,
+  accent = false,
+}: {
+  label: string;
+  value: string;
+  accent?: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <span className="text-sm text-text-secondary">{label}</span>
+      <span
+        className={cn(
+          "text-sm font-mono tabular-nums",
+          accent ? "text-info" : "text-text-primary",
+        )}
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
+
 export default function RiskModule() {
   const { isConnected, isCorrectChain, targetChainName } = useWallet();
   const {
@@ -22,14 +46,32 @@ export default function RiskModule() {
     ? openPositions.reduce((sum, position) => sum + position.margin_ratio, 0) / openPositions.length
     : 0;
   const isLoading = isConnected && isCorrectChain && hasDeployment && isPending;
+  const riskTone = avgMargin > 0.7 ? "Healthy" : avgMargin > 0.4 ? "Watch" : "Critical";
+  const spotEquity = 0;
+  const perpsEquity = portfolio.summary.total_value;
+  const balance = portfolio.summary.total_collateral;
+  const unrealizedPnl = portfolio.summary.total_pnl;
+  const crossMarginRatio = openPositions.length > 0 ? avgMargin : 0;
+  const maintenanceMargin = balance * 0.2;
+  const crossAccountLeverage = balance > 0 ? portfolio.summary.total_exposure / balance : 0;
 
   return (
     <Card className="overflow-hidden">
       <div className="px-5 py-3 border-b border-border-subtle flex items-center justify-between">
-        <span className="text-xs font-medium tracking-widest uppercase text-text-secondary">
-          Risk Overview
+        <div>
+          <span className="text-xs font-medium tracking-widest uppercase text-text-secondary">
+            Risk Overview
+          </span>
+          <p className="mt-1 text-[11px] text-text-ghost">
+            Margin and exposure summary from the decrypted wallet view.
+          </p>
+        </div>
+        <span className={cn(
+          "text-[10px] tracking-wider uppercase",
+          avgMargin > 0.7 ? "text-long/60" : avgMargin > 0.4 ? "text-warning/60" : "text-short/60",
+        )}>
+          {riskTone}
         </span>
-        <span className="text-[10px] text-accent/50 tracking-wider uppercase">confidential</span>
       </div>
 
       <div className="p-5 space-y-5">
@@ -53,8 +95,7 @@ export default function RiskModule() {
           </div>
         ) : (
           <>
-            {/* Overall margin gauge */}
-            <div>
+            <div className="rounded-[var(--radius-card)] border border-border-subtle bg-elevated/40 p-4">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs text-text-tertiary">Aggregate Margin Ratio</span>
                 <span className={cn(
@@ -82,66 +123,114 @@ export default function RiskModule() {
               </div>
             </div>
 
-            {/* Risk metrics */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between py-2 border-b border-border-subtle/30">
-                <span className="text-xs text-text-tertiary">Total Exposure</span>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-[var(--radius-card)] border border-border-subtle bg-elevated/40 p-4">
+                <div className="text-[10px] uppercase tracking-wider text-text-ghost mb-2">Exposure</div>
                 {isLoading ? (
                   <EncryptedValue width="w-20" />
                 ) : (
-                  <span className="text-xs font-mono text-text-primary tabular-nums">
+                  <span className="text-sm font-mono text-text-primary tabular-nums">
                     {formatCurrency(portfolio.summary.total_exposure)}
                   </span>
                 )}
               </div>
-              <div className="flex items-center justify-between py-2 border-b border-border-subtle/30">
-                <span className="text-xs text-text-tertiary">Available Margin</span>
+              <div className="rounded-[var(--radius-card)] border border-border-subtle bg-elevated/40 p-4">
+                <div className="text-[10px] uppercase tracking-wider text-text-ghost mb-2">Free Margin</div>
                 {isLoading ? (
                   <EncryptedValue width="w-16" />
                 ) : (
-                  <span className="text-xs font-mono text-text-primary tabular-nums">
+                  <span className="text-sm font-mono text-text-primary tabular-nums">
                     {formatCurrency(portfolio.summary.available_margin)}
                   </span>
                 )}
               </div>
-              <div className="flex items-center justify-between py-2 border-b border-border-subtle/30">
-                <span className="text-xs text-text-tertiary">Margin Used</span>
-                <span className="text-xs font-mono text-text-primary tabular-nums">
+              <div className="rounded-[var(--radius-card)] border border-border-subtle bg-elevated/40 p-4">
+                <div className="text-[10px] uppercase tracking-wider text-text-ghost mb-2">Margin Used</div>
+                <span className="text-sm font-mono text-text-primary tabular-nums">
                   {openPositions.length > 0 ? `${(marginUsed * 100).toFixed(1)}%` : "—"}
                 </span>
               </div>
-              <div className="flex items-center justify-between py-2">
-                <span className="text-xs text-text-tertiary">Active Positions</span>
-                <span className="text-xs font-mono text-text-primary tabular-nums">{openPositions.length}</span>
+              <div className="rounded-[var(--radius-card)] border border-border-subtle bg-elevated/40 p-4">
+                <div className="text-[10px] uppercase tracking-wider text-text-ghost mb-2">Active Books</div>
+                <span className="text-sm font-mono text-text-primary tabular-nums">{openPositions.length}</span>
               </div>
             </div>
 
-            {/* Per-position risk bars */}
-            {openPositions.length > 0 && (
-              <div className="space-y-3 pt-2 border-t border-border-subtle">
-                <span className="text-[10px] text-text-ghost uppercase tracking-widest">Per-Position Risk</span>
-                {openPositions.map((pos) => {
-                  const ratio = pos.margin_ratio;
-                  return (
-                    <div key={pos.id} className="flex items-center gap-3">
-                      <span className="text-[11px] font-mono text-text-secondary w-20 shrink-0">{pos.market}</span>
-                      <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
-                        <div
-                          className={cn(
-                            "h-full rounded-full",
-                            ratio > 0.7 ? "bg-long" : ratio > 0.4 ? "bg-warning" : "bg-short",
-                          )}
-                          style={{ width: `${ratio * 100}%` }}
-                        />
+            <div className="border-t border-border-subtle/70 pt-4 space-y-4">
+              <div>
+                <div className="text-sm font-medium text-text-primary">Account Equity</div>
+                <div className="mt-3 space-y-2.5">
+                  {isLoading ? (
+                    <>
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-sm text-text-secondary">Spot</span>
+                        <EncryptedValue width="w-14" />
                       </div>
-                      <span className="text-[10px] font-mono text-text-ghost tabular-nums w-8 text-right">
-                        {(ratio * 100).toFixed(0)}%
-                      </span>
-                    </div>
-                  );
-                })}
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-sm text-text-secondary">Perps</span>
+                        <EncryptedValue width="w-14" />
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <InfoRow label="Spot" value={formatCurrency(spotEquity)} />
+                      <InfoRow label="Perps" value={formatCurrency(perpsEquity)} />
+                    </>
+                  )}
+                </div>
               </div>
-            )}
+
+              <div>
+                <div className="text-sm font-medium text-text-primary">Perps Overview</div>
+                <div className="mt-3 space-y-2.5">
+                  {isLoading ? (
+                    <>
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-sm text-text-secondary">Balance</span>
+                        <EncryptedValue width="w-16" />
+                      </div>
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-sm text-text-secondary">Unrealized PnL</span>
+                        <EncryptedValue width="w-16" />
+                      </div>
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-sm text-text-secondary">Cross Margin Ratio</span>
+                        <EncryptedValue width="w-12" />
+                      </div>
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-sm text-text-secondary">Maintenance Margin</span>
+                        <EncryptedValue width="w-16" />
+                      </div>
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-sm text-text-secondary">Cross Account Leverage</span>
+                        <EncryptedValue width="w-12" />
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <InfoRow label="Balance" value={formatCurrency(balance)} />
+                      <InfoRow
+                        label="Unrealized PnL"
+                        value={formatCurrency(unrealizedPnl)}
+                      />
+                      <InfoRow
+                        label="Cross Margin Ratio"
+                        value={`${(crossMarginRatio * 100).toFixed(2)}%`}
+                        accent
+                      />
+                      <InfoRow
+                        label="Maintenance Margin"
+                        value={formatCurrency(maintenanceMargin)}
+                      />
+                      <InfoRow
+                        label="Cross Account Leverage"
+                        value={`${crossAccountLeverage.toFixed(2)}x`}
+                      />
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
           </>
         )}
       </div>

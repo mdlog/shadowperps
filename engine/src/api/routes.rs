@@ -30,6 +30,7 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         // Markets
         .route("/api/markets", get(handlers::get_markets))
         .route("/api/markets/{symbol}", get(handlers::get_market))
+        .route("/api/stream/prices", get(handlers::stream_prices))
         // Positions
         .route("/api/positions", get(handlers::get_positions))
         .route("/api/positions/{id}", get(handlers::get_position))

@@ -1,7 +1,12 @@
 use axum::extract::{Path, Query, State};
+use axum::response::sse::{Event, KeepAlive, Sse};
 use axum::Json;
 use serde::Deserialize;
+use std::convert::Infallible;
 use std::sync::Arc;
+use std::time::Duration;
+use tokio_stream::StreamExt;
+use tokio_stream::wrappers::BroadcastStream;
 
 use crate::api::routes::AppState;
 use crate::types::*;
@@ -32,6 +37,31 @@ pub async fn health(State(state): State<Arc<AppState>>) -> Json<EngineHealth> {
 pub async fn get_markets(State(state): State<Arc<AppState>>) -> Json<ApiResponse<Vec<Market>>> {
     let markets = state.price_feed.get_markets().await;
     Json(ApiResponse::ok(markets))
+}
+
+pub async fn stream_prices(
+    State(state): State<Arc<AppState>>,
+) -> Sse<impl tokio_stream::Stream<Item = Result<Event, Infallible>>> {
+    let receiver = state.price_feed.subscribe_updates();
+    let stream = BroadcastStream::new(receiver).filter_map(|message| {
+        match message {
+            Ok(updates) => {
+                let payload = match serde_json::to_string(&updates) {
+                    Ok(payload) => payload,
+                    Err(_) => return None,
+                };
+
+                Some(Ok(Event::default().event("prices").data(payload)))
+            }
+            Err(_) => None,
+        }
+    });
+
+    Sse::new(stream).keep_alive(
+        KeepAlive::new()
+            .interval(Duration::from_secs(10))
+            .text("keep-alive"),
+    )
 }
 
 pub async fn get_market(

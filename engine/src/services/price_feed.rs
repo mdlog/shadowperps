@@ -5,7 +5,7 @@ use rust_decimal::prelude::FromPrimitive;
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::RwLock;
+use tokio::sync::{RwLock, broadcast};
 use tracing::{info, warn};
 
 use crate::types::{Market, PriceUpdate};
@@ -15,6 +15,7 @@ use crate::services::oracle_sync::OracleSyncService;
 pub struct PriceFeedService {
     pub markets: Arc<RwLock<HashMap<String, Market>>>,
     http: reqwest::Client,
+    updates_tx: broadcast::Sender<Vec<PriceUpdate>>,
 }
 
 // CryptoCompare multi-price response:
@@ -42,9 +43,11 @@ struct CryptoCompareUsd {
 impl PriceFeedService {
     pub fn new() -> Self {
         let markets = Arc::new(RwLock::new(Self::default_markets()));
+        let (updates_tx, _) = broadcast::channel(64);
         Self {
             markets,
             http: reqwest::Client::new(),
+            updates_tx,
         }
     }
 
@@ -154,6 +157,9 @@ impl PriceFeedService {
         }
 
         info!("Updated {} prices from CryptoCompare", updates.len());
+        if !updates.is_empty() {
+            let _ = self.updates_tx.send(updates.clone());
+        }
         Ok(updates)
     }
 
@@ -206,5 +212,9 @@ impl PriceFeedService {
     pub async fn get_price(&self, symbol: &str) -> Option<Decimal> {
         let markets = self.markets.read().await;
         markets.get(symbol).map(|m| m.price)
+    }
+
+    pub fn subscribe_updates(&self) -> broadcast::Receiver<Vec<PriceUpdate>> {
+        self.updates_tx.subscribe()
     }
 }
