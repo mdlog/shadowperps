@@ -22,10 +22,21 @@ export default function OrderPanel({ market }: OrderPanelProps) {
   const [collateral, setCollateral] = useState("");
   const [limitPrice, setLimitPrice] = useState("");
 
-  const { isConnected, connectWallet } = useWallet();
+  const { isConnected, isCorrectChain, connectWallet, switchToTarget, targetChainName } = useWallet();
   const { data: marketData } = useMarket(market);
   const { price: oraclePrice } = useOnChainMarketPrice(market);
-  const { openPosition, status, error: txError, txHash, hasContract, isOnChainReady, usdcBalance, reset } = useOnChainTrading();
+  const {
+    openPosition,
+    status,
+    error: txError,
+    txHash,
+    hasContract,
+    isOnChainReady,
+    requiresChainSwitch,
+    isMockTradingEnabled,
+    usdcBalance,
+    reset,
+  } = useOnChainTrading();
   const queryClient = useQueryClient();
 
   const enginePrice = marketData ? parseFloat(marketData.price) : 0;
@@ -33,6 +44,12 @@ export default function OrderPanel({ market }: OrderPanelProps) {
   const collateralNum = parseFloat(collateral) || 0;
   const size = collateralNum * leverage;
   const isBusy = status === "encrypting" || status === "approving" || status === "confirming" || status === "decrypting" || status === "pending";
+  const hasEnoughUsdc = collateralNum <= 0 || collateralNum <= usdcBalance;
+  const isProductionOnChainOnly = !isMockTradingEnabled;
+  const submitBlocked = isBusy
+    || !collateralNum
+    || (isOnChainReady && !hasEnoughUsdc)
+    || (isProductionOnChainOnly && !isOnChainReady && isConnected && isCorrectChain);
 
   // Clear success state after 3s
   useEffect(() => {
@@ -45,6 +62,11 @@ export default function OrderPanel({ market }: OrderPanelProps) {
   const handleSubmit = async () => {
     if (!isConnected) {
       connectWallet();
+      return;
+    }
+
+    if (!isCorrectChain) {
+      switchToTarget();
       return;
     }
 
@@ -156,6 +178,11 @@ export default function OrderPanel({ market }: OrderPanelProps) {
                 </button>
               </div>
             )}
+            {isOnChainReady && collateralNum > 0 && !hasEnoughUsdc && (
+              <p className="mt-1.5 px-1 text-[10px] text-short">
+                Testnet USDC balance is too low for this collateral amount.
+              </p>
+            )}
           </div>
         </div>
 
@@ -265,13 +292,16 @@ export default function OrderPanel({ market }: OrderPanelProps) {
             size="lg"
             className="w-full text-sm font-semibold"
             onClick={handleSubmit}
-            disabled={isBusy || !collateralNum}
+            disabled={submitBlocked}
           >
-            {status === "encrypting" ? "Encrypting Order..."
+            {!isCorrectChain ? `Switch to ${targetChainName}`
+              : status === "encrypting" ? "Encrypting Order..."
               : status === "approving" ? "Approve USDC in Wallet..."
               : status === "confirming" ? "Confirm Transaction..."
               : status === "decrypting" ? "Decrypting Proof..."
               : status === "pending" ? "Waiting for Block..."
+              : isOnChainReady && !hasEnoughUsdc ? "Insufficient Testnet USDC"
+              : isProductionOnChainOnly && !isOnChainReady ? "On-chain Trading Required"
               : `Open ${direction === "long" ? "Long" : "Short"} — ${leverage}x`}
           </Button>
         )}
@@ -300,6 +330,12 @@ export default function OrderPanel({ market }: OrderPanelProps) {
           <p className="text-[10px] text-text-ghost text-center leading-relaxed">
             {isOnChainReady
               ? "On-chain mode — USDC collateral via Arbitrum Sepolia"
+              : isProductionOnChainOnly
+                ? requiresChainSwitch
+                  ? `Production mode — switch to ${targetChainName} to trade live`
+                  : hasContract
+                    ? "Production mode — on-chain trading only. Testnet USDC is required."
+                    : "Production mode — on-chain trading only. ShadowPerps contract env is missing."
               : hasContract
                 ? "Connect wallet to Arbitrum Sepolia for on-chain mode"
                 : "Engine mode — deploy contracts for on-chain"}

@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { useAccount, useWriteContract, usePublicClient, useWalletClient, useReadContract } from "wagmi";
+import { useAccount, useChainId, useWriteContract, usePublicClient, useWalletClient, useReadContract } from "wagmi";
 import { parseGwei, decodeEventLog } from "viem";
 import { SHADOW_PERPS_ABI, ERC20_ABI, CONTRACT_ADDRESSES } from "@/lib/contracts";
 import { useCofheHelpers } from "@/lib/fhenix";
 import { engineApi } from "@/lib/engine-api";
+import { defaultChain } from "@/lib/wagmi";
 
 async function getGasOverrides(publicClient: NonNullable<ReturnType<typeof usePublicClient>>) {
   const block = await publicClient.getBlock();
@@ -64,6 +65,7 @@ type TxStatus =
 
 export function useOnChainTrading() {
   const { address } = useAccount();
+  const chainId = useChainId();
   const publicClient = usePublicClient();
   const { data: walletClient } = useWalletClient();
   const { writeContractAsync } = useWriteContract();
@@ -75,7 +77,10 @@ export function useOnChainTrading() {
   const contractAddress = CONTRACT_ADDRESSES.shadowPerps;
   const usdcAddress = CONTRACT_ADDRESSES.usdc;
   const hasContract = !!contractAddress;
-  const isOnChainReady = hasContract && !!publicClient && !!walletClient;
+  const requiresChainSwitch = Boolean(address) && chainId !== defaultChain.id;
+  const isOnChainReady = hasContract && !!publicClient && !!walletClient && !requiresChainSwitch;
+  const isMockTradingEnabled = process.env.NEXT_PUBLIC_ENABLE_ENGINE_TRADING === "true"
+    || process.env.NODE_ENV !== "production";
 
   const { data: usdcRaw } = useReadContract({
     address: usdcAddress,
@@ -100,6 +105,10 @@ export function useOnChainTrading() {
       if (isOnChainReady) {
         const collateralUsdc = usdToUsdc(params.collateral);
         const sizeUsdc = collateralUsdc * BigInt(params.leverage);
+
+        if ((usdcRaw as bigint | undefined) !== undefined && collateralUsdc > (usdcRaw as bigint)) {
+          throw new Error("Insufficient testnet USDC balance");
+        }
 
         setStatus("encrypting");
         const [directionInput, sizeInput] = await encryptInputs(publicClient!, walletClient!, [
@@ -184,6 +193,18 @@ export function useOnChainTrading() {
         return { hash: finalizeHash, onChainId: onChainId !== undefined ? Number(onChainId) : undefined };
       }
 
+      if (!isMockTradingEnabled) {
+        if (!hasContract) {
+          throw new Error("On-chain trading is required in production, but the ShadowPerps contract is not configured.");
+        }
+
+        if (requiresChainSwitch) {
+          throw new Error(`Switch to ${defaultChain.name} to open a live position.`);
+        }
+
+        throw new Error("On-chain trading is required in production. Connect a wallet with Arbitrum Sepolia testnet USDC.");
+      }
+
       setStatus("confirming");
       const position = await engineApi.openPosition({ ...params, trader: address });
       setStatus("success");
@@ -193,7 +214,7 @@ export function useOnChainTrading() {
       setError(e instanceof Error ? e.message : "Transaction failed");
       throw e;
     }
-  }, [address, isOnChainReady, contractAddress, usdcAddress, writeContractAsync, publicClient, walletClient, decryptForTx, encryptInputs]);
+  }, [address, isOnChainReady, contractAddress, usdcAddress, writeContractAsync, publicClient, walletClient, decryptForTx, encryptInputs, usdcRaw, isMockTradingEnabled, hasContract, requiresChainSwitch]);
 
   const closePosition = useCallback(async (positionId: number, onChainId?: number) => {
     if (!address) throw new Error("Wallet not connected");
@@ -303,6 +324,8 @@ export function useOnChainTrading() {
     txHash,
     hasContract,
     isOnChainReady,
+    requiresChainSwitch,
+    isMockTradingEnabled,
     usdcBalance: usdcRaw ? Number(usdcRaw) / 10 ** USDC_DECIMALS : 0,
     reset,
   };

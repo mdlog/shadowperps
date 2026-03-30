@@ -14,7 +14,7 @@ import Button from "@/components/ui/Button";
 export default function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
-  const { address, shortAddress, isConnected, isConnecting, isCorrectChain, targetChainName, connectWallet, connectWalletAsync, switchToTarget, disconnect } = useWallet();
+  const { address, shortAddress, isConnected, isConnecting, isCorrectChain, targetChainName, connectWallet, connectWalletAsync, ensureTargetChain, switchToTarget, disconnect } = useWallet();
   const { data: health } = useEngineHealth();
   const [walletOpen, setWalletOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -49,6 +49,9 @@ export default function Navbar() {
 
   const handleLaunchApp = async () => {
     if (isConnected) {
+      if (!isCorrectChain) {
+        await ensureTargetChain();
+      }
       router.push("/trade");
       return;
     }

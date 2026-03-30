@@ -20,10 +20,18 @@ pub struct EngineConfig {
     pub price_update_interval_secs: u64,
     /// Liquidation check interval in seconds
     pub liquidation_check_interval_secs: u64,
+    /// Whether the REST engine may create mock positions without an on-chain id
+    pub allow_mock_trading: bool,
 }
 
 impl EngineConfig {
     pub fn from_env() -> anyhow::Result<Self> {
+        let allow_mock_trading = std::env::var("ALLOW_MOCK_TRADING")
+            .map(|value| matches!(value.trim().to_ascii_lowercase().as_str(), "1" | "true" | "yes" | "on"))
+            .unwrap_or_else(|_| {
+                !matches!(std::env::var("NODE_ENV").ok().as_deref(), Some("production"))
+            });
+
         Ok(Self {
             host: std::env::var("ENGINE_HOST").unwrap_or_else(|_| "0.0.0.0".into()),
             port: std::env::var("ENGINE_PORT")
@@ -47,6 +55,7 @@ impl EngineConfig {
             liquidation_check_interval_secs: std::env::var("LIQUIDATION_CHECK_INTERVAL")
                 .unwrap_or_else(|_| "10".into())
                 .parse()?,
+            allow_mock_trading,
         })
     }
 

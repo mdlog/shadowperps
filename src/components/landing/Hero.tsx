@@ -15,10 +15,13 @@ const RIGHT_STREAMS = Array.from({ length: 10 }, (_, row) =>
 
 export default function Hero() {
   const router = useRouter();
-  const { isConnected, isConnecting, connectWalletAsync } = useWallet();
+  const { isConnected, isConnecting, isCorrectChain, connectWalletAsync, ensureTargetChain } = useWallet();
 
   const handleLaunchApp = async () => {
     if (isConnected) {
+      if (!isCorrectChain) {
+        await ensureTargetChain();
+      }
       router.push("/trade");
       return;
     }

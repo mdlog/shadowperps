@@ -83,6 +83,12 @@ pub async fn open_position(
     State(state): State<Arc<AppState>>,
     Json(req): Json<OpenPositionRequest>,
 ) -> Json<ApiResponse<Position>> {
+    if req.on_chain_id.is_none() && !state.config.allow_mock_trading {
+        return Json(ApiResponse::err(
+            "Mock engine trading is disabled. Open the position on-chain with testnet USDC first.",
+        ));
+    }
+
     match state.position_manager.open_position(req).await {
         Ok(pos) => Json(ApiResponse::ok(pos)),
         Err(e) => Json(ApiResponse::err(e.to_string())),

@@ -9,21 +9,41 @@ export function useWallet() {
   const { connectAsync } = useConnect();
   const { disconnect } = useDisconnect();
   const chainId = useChainId();
-  const { switchChain } = useSwitchChain();
+  const { switchChain, switchChainAsync } = useSwitchChain();
 
   const isCorrectChain = chainId === defaultChain.id;
 
+  const ensureTargetChain = async (activeChainId?: number | undefined) => {
+    const resolvedChainId = activeChainId ?? chainId;
+
+    if (resolvedChainId === defaultChain.id) {
+      return;
+    }
+
+    if (switchChainAsync) {
+      await switchChainAsync({ chainId: defaultChain.id });
+      return;
+    }
+
+    switchChain({ chainId: defaultChain.id });
+  };
+
   const connectWalletAsync = async () => {
+    let result;
+
     try {
-      return await connectAsync({ connector: metaMaskConnector });
+      result = await connectAsync({ connector: metaMaskConnector });
     } catch (error) {
       // If MetaMask is not installed, fall back to any injected EIP-1193 wallet.
       if (!(error instanceof ProviderNotFoundError)) {
         throw error;
       }
 
-      return await connectAsync({ connector: injectedConnector });
+      result = await connectAsync({ connector: injectedConnector });
     }
+
+    await ensureTargetChain(result.chainId);
+    return result;
   };
 
   const connectWallet = () => {
@@ -48,6 +68,7 @@ export function useWallet() {
     targetChainName: defaultChain.name,
     connectWallet,
     connectWalletAsync,
+    ensureTargetChain,
     switchToTarget,
     disconnect,
   };
