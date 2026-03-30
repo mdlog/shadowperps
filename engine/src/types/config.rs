@@ -27,6 +27,7 @@ impl EngineConfig {
         Ok(Self {
             host: std::env::var("ENGINE_HOST").unwrap_or_else(|_| "0.0.0.0".into()),
             port: std::env::var("ENGINE_PORT")
+                .or_else(|_| std::env::var("PORT"))
                 .unwrap_or_else(|_| "3010".into())
                 .parse()?,
             rpc_url: std::env::var("FHENIX_RPC_URL")
