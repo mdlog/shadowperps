@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createChart, type IChartApi, type CandlestickData, type Time, ColorType, CandlestickSeries, HistogramSeries } from "lightweight-charts";
 import { useQuery } from "@tanstack/react-query";
 import { engineApi, type Candle } from "@/lib/engine-api";
@@ -29,15 +29,16 @@ export default function Chart({ className, symbol = "BTC-PERP" }: ChartProps) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const volumeSeriesRef = useRef<any>(null);
   const [timeframe, setTimeframe] = useState("1h");
-  const [priceChange, setPriceChange] = useState<number>(0);
 
   // Live spot price (same source as mark price in positions)
   const { data: marketData } = useMarket(symbol);
   const livePrice = marketData ? parseFloat(marketData.price) : null;
 
-  const { data: candles } = useQuery<Candle[]>({
+  const { data: candles, isFetching: isFetchingCandles, isError: candlesError } = useQuery<Candle[]>({
     queryKey: ["candles", symbol, timeframe],
     queryFn: () => engineApi.getCandles(symbol, timeframe, 200),
+    enabled: !!symbol,
+    staleTime: 0,
     refetchInterval: 30_000,
     retry: 2,
   });
@@ -116,6 +117,16 @@ export default function Chart({ className, symbol = "BTC-PERP" }: ChartProps) {
     };
   }, []);
 
+  // Clear stale series immediately when switching market or timeframe.
+  // Without this, the previous market's candles remain visible until the next
+  // candle request resolves, which makes the chart appear "stuck" on the old market.
+  useEffect(() => {
+    if (!candleSeriesRef.current || !volumeSeriesRef.current) return;
+
+    candleSeriesRef.current.setData([]);
+    volumeSeriesRef.current.setData([]);
+  }, [symbol, timeframe]);
+
   // Update data when candles change
   useEffect(() => {
     if (!candles || !candleSeriesRef.current || !volumeSeriesRef.current) return;
@@ -137,15 +148,22 @@ export default function Chart({ className, symbol = "BTC-PERP" }: ChartProps) {
     candleSeriesRef.current.setData(candleData);
     volumeSeriesRef.current.setData(volumeData);
 
-    // Calculate price change from first candle open
-    if (candles.length > 0) {
-      const first = candles[0];
-      const price = livePrice || candles[candles.length - 1].close;
-      setPriceChange(((price - first.open) / first.open) * 100);
-    }
-
     // Fit content
     chartRef.current?.timeScale().fitContent();
+  }, [candles, livePrice]);
+
+  const priceChange = useMemo(() => {
+    if (!candles || candles.length === 0) {
+      return 0;
+    }
+
+    const first = candles[0];
+    if (!first.open) {
+      return 0;
+    }
+
+    const price = livePrice || candles[candles.length - 1].close;
+    return ((price - first.open) / first.open) * 100;
   }, [candles, livePrice]);
 
   const displayName = symbol === "BTC-PERP" ? "B" : symbol === "ETH-PERP" ? "E" : "S";
@@ -176,6 +194,16 @@ export default function Chart({ className, symbol = "BTC-PERP" }: ChartProps) {
             </>
           )}
           <span className="text-[10px] px-1.5 py-0.5 rounded bg-accent/10 text-accent/70 font-mono">LIVE</span>
+          {isFetchingCandles && (
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-info/10 text-info/80 font-mono">
+              SYNCING
+            </span>
+          )}
+          {candlesError && (
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-short/10 text-short/80 font-mono">
+              CANDLES ERROR
+            </span>
+          )}
         </div>
 
         <div className="hidden lg:flex items-center gap-1">

@@ -5,7 +5,7 @@ export default function Footer() {
     <footer className="border-t border-border-subtle bg-void/50">
       <div className="max-w-[1440px] mx-auto px-6 lg:px-10 py-6 flex flex-col sm:flex-row items-center justify-between gap-4">
         <div className="flex items-center gap-2.5">
-          <img src="/logo.png" alt="ShadowPerps" className="w-5 h-5 rounded object-contain" />
+          <img src="/logo.png" alt="ShadowPerps" className="w-8 h-8 rounded object-contain" />
           <span className="text-xs text-text-tertiary">
             Shadow<span className="text-accent/70">Perps</span> &middot; Confidential Perpetual Trading
           </span>

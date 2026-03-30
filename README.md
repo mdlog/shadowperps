@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="logo.png" alt="ShadowPerps" width="120" />
+  <img src="logo.png" alt="ShadowPerps" width="280" />
 </p>
 
 # ShadowPerps

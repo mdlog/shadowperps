@@ -52,7 +52,7 @@ export default function Navbar() {
         <nav className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-3 group">
-            <img src="/logo.png" alt="ShadowPerps" className="w-8 h-8 rounded-lg object-contain" />
+            <img src="/logo.png" alt="ShadowPerps" className="w-10 h-10 rounded-lg object-contain" />
             <span className="font-display text-xl font-semibold tracking-tight text-text-primary">
               Shadow<span className="text-accent">Perps</span>
             </span>
