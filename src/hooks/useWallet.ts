@@ -1,24 +1,33 @@
 "use client";
 
 import { useAccount, useConnect, useDisconnect, useChainId, useSwitchChain } from "wagmi";
-import { injected } from "@wagmi/core";
-import { defaultChain } from "@/lib/wagmi";
+import { ProviderNotFoundError } from "@wagmi/core";
+import { defaultChain, injectedConnector, metaMaskConnector } from "@/lib/wagmi";
 
 export function useWallet() {
   const { address, isConnected, isConnecting } = useAccount();
-  const { connect, connectAsync } = useConnect();
+  const { connectAsync } = useConnect();
   const { disconnect } = useDisconnect();
   const chainId = useChainId();
   const { switchChain } = useSwitchChain();
 
   const isCorrectChain = chainId === defaultChain.id;
 
-  const connectWallet = () => {
-    connect({ connector: injected() });
+  const connectWalletAsync = async () => {
+    try {
+      return await connectAsync({ connector: metaMaskConnector });
+    } catch (error) {
+      // If MetaMask is not installed, fall back to any injected EIP-1193 wallet.
+      if (!(error instanceof ProviderNotFoundError)) {
+        throw error;
+      }
+
+      return await connectAsync({ connector: injectedConnector });
+    }
   };
 
-  const connectWalletAsync = async () => {
-    return await connectAsync({ connector: injected() });
+  const connectWallet = () => {
+    void connectWalletAsync();
   };
 
   const switchToTarget = () => {

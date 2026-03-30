@@ -26,8 +26,8 @@ export default function Hero() {
     try {
       await connectWalletAsync();
       router.push("/trade");
-    } catch {
-      // User rejected the wallet prompt or the connector failed.
+    } catch (error) {
+      console.error("Wallet connect failed", error);
     }
   };
 
