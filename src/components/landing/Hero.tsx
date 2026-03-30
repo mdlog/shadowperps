@@ -1,7 +1,36 @@
+"use client";
+
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import Button from "@/components/ui/Button";
+import { useWallet } from "@/hooks/useWallet";
+
+const LEFT_STREAMS = Array.from({ length: 12 }, (_, row) =>
+  Array.from({ length: 40 }, (_, col) => ((row * 41 + col * 17) % 5 < 2 ? "█" : "░")).join(""),
+);
+
+const RIGHT_STREAMS = Array.from({ length: 10 }, (_, row) =>
+  Array.from({ length: 30 }, (_, col) => ((row * 29 + col * 13) % 4 < 2 ? "█" : "░")).join(""),
+);
 
 export default function Hero() {
+  const router = useRouter();
+  const { isConnected, isConnecting, connectWalletAsync } = useWallet();
+
+  const handleLaunchApp = async () => {
+    if (isConnected) {
+      router.push("/trade");
+      return;
+    }
+
+    try {
+      await connectWalletAsync();
+      router.push("/trade");
+    } catch {
+      // User rejected the wallet prompt or the connector failed.
+    }
+  };
+
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
       {/* Background layers */}
@@ -13,20 +42,16 @@ export default function Hero() {
 
       {/* Decorative encrypted data streams */}
       <div className="absolute top-20 left-[10%] opacity-[0.04] font-mono text-xs leading-loose select-none pointer-events-none" aria-hidden>
-        {Array.from({ length: 12 }, (_, i) => (
+        {LEFT_STREAMS.map((stream, i) => (
           <div key={i} className="whitespace-nowrap">
-            {Array.from({ length: 40 }, () =>
-              Math.random() > 0.5 ? "█" : "░"
-            ).join("")}
+            {stream}
           </div>
         ))}
       </div>
       <div className="absolute top-32 right-[8%] opacity-[0.04] font-mono text-xs leading-loose select-none pointer-events-none" aria-hidden>
-        {Array.from({ length: 10 }, (_, i) => (
+        {RIGHT_STREAMS.map((stream, i) => (
           <div key={i} className="whitespace-nowrap">
-            {Array.from({ length: 30 }, () =>
-              Math.random() > 0.5 ? "█" : "░"
-            ).join("")}
+            {stream}
           </div>
         ))}
       </div>
@@ -63,11 +88,9 @@ export default function Hero() {
 
           {/* CTA */}
           <div className="flex items-center justify-center gap-4 animate-fade-up opacity-0 stagger-3">
-            <Link href="/trade">
-              <Button variant="primary" size="lg">
-                Launch App
-              </Button>
-            </Link>
+            <Button variant="primary" size="lg" onClick={() => void handleLaunchApp()} disabled={isConnecting}>
+              {isConnecting ? "Connecting..." : "Launch App"}
+            </Button>
             <Link href="#architecture">
               <Button variant="secondary" size="lg">
                 View Architecture

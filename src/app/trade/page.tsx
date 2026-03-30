@@ -5,8 +5,8 @@ import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import Chart from "@/components/trading/Chart";
 import OrderPanel from "@/components/trading/OrderPanel";
+import AccountInfo from "@/components/trading/AccountInfo";
 import PositionSummary from "@/components/trading/PositionSummary";
-import OrderHistory from "@/components/trading/OrderHistory";
 
 function formatChartInterval(interval: string): string {
   switch (interval) {
@@ -66,21 +66,23 @@ export default function TradePage() {
           </div>
 
           {/* Main grid */}
-          <div className="grid grid-cols-12 gap-3 lg:gap-4">
+          <div className="grid grid-cols-12 gap-3 lg:gap-4 lg:items-stretch">
             {/* Center — Chart + Positions */}
-            <div className="col-span-12 lg:col-span-9 space-y-3">
+            <div className="col-span-12 flex flex-col gap-3 lg:col-span-9 lg:min-h-full">
               <Chart
                 symbol={selectedMarket}
                 onSymbolChange={setSelectedMarket}
                 onIntervalChange={setSelectedInterval}
               />
-              <PositionSummary />
-              <OrderHistory />
+              <div className="flex flex-1">
+                <PositionSummary />
+              </div>
             </div>
 
-            {/* Right sidebar — Order Panel */}
-            <div className="col-span-12 lg:col-span-3">
+            {/* Right sidebar — Order Panel + Account */}
+            <div className="col-span-12 flex flex-col gap-3 lg:col-span-3">
               <OrderPanel market={selectedMarket} />
+              <AccountInfo />
             </div>
           </div>
         </div>

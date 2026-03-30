@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { formatUnits } from "viem";
+import { formatUnits, parseAbiItem } from "viem";
 import { useAccount, useChainId, usePublicClient, useWalletClient } from "wagmi";
 import { CONTRACT_ADDRESSES, PRICE_ORACLE_ABI, SHADOW_PERPS_ABI } from "@/lib/contracts";
 import { useCofheHelpers } from "@/lib/fhenix";
@@ -26,6 +26,7 @@ export interface OnChainPortfolioPosition {
   mark_price: number;
   leverage: number;
   unrealized_pnl: number;
+  realized_pnl: number | null;
   pnl_percent: number;
   margin_ratio: number;
   liquidation_price: number;
@@ -76,6 +77,11 @@ const EMPTY_PORTFOLIO: OnChainPortfolioData = {
 
 function toDecimal(value: bigint, decimals: number): number {
   return Number.parseFloat(formatUnits(value, decimals));
+}
+
+function toSignedDecimal(value: bigint, decimals: number): number {
+  const magnitude = Number.parseFloat(formatUnits(value < 0n ? -value : value, decimals));
+  return value < 0n ? -magnitude : magnitude;
 }
 
 function clamp(value: number, min = 0, max = 1): number {
@@ -223,6 +229,28 @@ export function useOnChainPortfolio() {
         : [];
 
       const priceBySymbol = new Map(priceEntries);
+      const hasClosedPositions = rawPositions.some((position) => decodeStatus(position.meta[5]) === "closed");
+      const closedPositionLogs = hasClosedPositions
+        ? await chainReader.getLogs({
+          address: contractAddress,
+          event: parseAbiItem(
+            "event PositionClosed(uint256 indexed positionId, address indexed trader, uint256 payout, int256 pnl)",
+          ),
+          args: { trader: traderAddress },
+          fromBlock: 0n,
+        })
+        : [];
+      const realizedPnlByPositionId = new Map(
+        closedPositionLogs.flatMap((log) => {
+          const positionId = log.args.positionId;
+          const pnl = log.args.pnl;
+          if (positionId === undefined || pnl === undefined) {
+            return [];
+          }
+
+          return [[Number(positionId), toSignedDecimal(pnl, USDC_DECIMALS)] as const];
+        }),
+      );
 
       const positions = await Promise.all(rawPositions.map(async ({ positionId, meta, ciphertexts }) => {
         const [marketId, collateralRaw, entryPriceRaw, openedAtRaw, statusRaw] = [
@@ -247,6 +275,7 @@ export function useOnChainPortfolio() {
         const status = decodeStatus(statusRaw);
 
         let unrealizedPnl = 0;
+        let realizedPnl: number | null = null;
         let pnlPercent = 0;
         let marginRatio = 1;
 
@@ -254,8 +283,13 @@ export function useOnChainPortfolio() {
           unrealizedPnl = calculatePnl(direction, size, entryPrice, markPrice);
           pnlPercent = collateral > 0 ? (unrealizedPnl / collateral) * 100 : 0;
           marginRatio = collateral > 0 ? clamp((collateral + unrealizedPnl) / collateral) : 0;
+        } else if (status === "closed") {
+          realizedPnl = realizedPnlByPositionId.get(Number(positionId)) ?? 0;
+          pnlPercent = collateral > 0 ? (realizedPnl / collateral) * 100 : 0;
+          marginRatio = 0;
         } else if (status === "liquidated") {
           unrealizedPnl = -collateral;
+          realizedPnl = -collateral;
           pnlPercent = collateral > 0 ? -100 : 0;
           marginRatio = 0;
         }
@@ -271,6 +305,7 @@ export function useOnChainPortfolio() {
           mark_price: markPrice,
           leverage: collateral > 0 ? size / collateral : 0,
           unrealized_pnl: unrealizedPnl,
+          realized_pnl: realizedPnl,
           pnl_percent: pnlPercent,
           margin_ratio: marginRatio,
           liquidation_price: calculateLiquidationPrice(direction, entryPrice, size, collateral),

@@ -6,7 +6,7 @@ import { defaultChain } from "@/lib/wagmi";
 
 export function useWallet() {
   const { address, isConnected, isConnecting } = useAccount();
-  const { connect } = useConnect();
+  const { connect, connectAsync } = useConnect();
   const { disconnect } = useDisconnect();
   const chainId = useChainId();
   const { switchChain } = useSwitchChain();
@@ -15,6 +15,10 @@ export function useWallet() {
 
   const connectWallet = () => {
     connect({ connector: injected() });
+  };
+
+  const connectWalletAsync = async () => {
+    return await connectAsync({ connector: injected() });
   };
 
   const switchToTarget = () => {
@@ -34,6 +38,7 @@ export function useWallet() {
     chainId,
     targetChainName: defaultChain.name,
     connectWallet,
+    connectWalletAsync,
     switchToTarget,
     disconnect,
   };

@@ -2,10 +2,10 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useBalance } from "wagmi";
 import { useReadContract } from "wagmi";
-import { cn, formatCurrency } from "@/lib/constants";
+import { cn } from "@/lib/constants";
 import { useWallet } from "@/hooks/useWallet";
 import { useEngineHealth } from "@/hooks/useEngine";
 import { ERC20_ABI, CONTRACT_ADDRESSES } from "@/lib/contracts";
@@ -13,7 +13,8 @@ import Button from "@/components/ui/Button";
 
 export default function Navbar() {
   const pathname = usePathname();
-  const { address, shortAddress, isConnected, isConnecting, isCorrectChain, targetChainName, connectWallet, switchToTarget, disconnect } = useWallet();
+  const router = useRouter();
+  const { address, shortAddress, isConnected, isConnecting, isCorrectChain, targetChainName, connectWallet, connectWalletAsync, switchToTarget, disconnect } = useWallet();
   const { data: health } = useEngineHealth();
   const [walletOpen, setWalletOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -45,6 +46,20 @@ export default function Navbar() {
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
+
+  const handleLaunchApp = async () => {
+    if (isConnected) {
+      router.push("/trade");
+      return;
+    }
+
+    try {
+      await connectWalletAsync();
+      router.push("/trade");
+    } catch {
+      // User rejected the wallet prompt or the connector failed.
+    }
+  };
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 glass">
@@ -189,7 +204,7 @@ export default function Navbar() {
               <Button
                 variant="primary"
                 size="sm"
-                onClick={connectWallet}
+                onClick={isApp ? connectWallet : () => void handleLaunchApp()}
                 disabled={isConnecting}
               >
                 {isConnecting ? "Connecting..." : isApp ? "Connect Wallet" : "Launch App"}

@@ -11,8 +11,6 @@ import { cn, formatCurrency } from "@/lib/constants";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 
-const USDC_DECIMALS = 6;
-
 export default function PoolPage() {
   const { isConnected, connectWallet } = useWallet();
   const { address } = useAccount();
@@ -61,8 +59,6 @@ export default function PoolPage() {
   const userLp = lpBalance ? Number(lpBalance) / 1e6 : 0;
   const userUsdc = usdcBalance ? Number(usdcBalance) / 1e6 : 0;
   const userLpValue = userLp * lpPrice;
-  const apy = tvl > 0 ? ((feesEarned + traderLosses - traderProfits) / tvl * 100) : 0;
-
   async function getGas() {
     if (!publicClient) return {};
     const block = await publicClient.getBlock();
@@ -131,7 +127,7 @@ export default function PoolPage() {
     <>
       <Navbar />
       <main className="pt-16 min-h-screen bg-base">
-        <div className="max-w-[960px] mx-auto px-6 lg:px-10 py-8">
+        <div className="max-w-[1440px] mx-auto px-6 lg:px-10 py-8">
           <h1 className="font-display text-2xl font-semibold tracking-tight text-text-primary mb-2">
             Liquidity Pool
           </h1>

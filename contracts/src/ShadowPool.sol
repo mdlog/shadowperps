@@ -54,20 +54,20 @@ contract ShadowPool is ERC20, Ownable, ReentrancyGuard {
     function deposit(uint256 amount) external nonReentrant {
         require(amount > 0, "Zero amount");
 
-        usdc.safeTransferFrom(msg.sender, address(this), amount);
-
         // Calculate LP tokens to mint
         // If pool is empty: 1 USDC = 1 spUSDC
-        // Otherwise: proportional to pool value
+        // Otherwise: proportional to pool value before this deposit lands
         uint256 lpTokens;
         uint256 supply = totalSupply();
-        uint256 poolValue = getPoolValue();
+        uint256 poolValueBefore = getPoolValue();
 
-        if (supply == 0 || poolValue == 0) {
+        if (supply == 0 || poolValueBefore == 0) {
             lpTokens = amount;
         } else {
-            lpTokens = (amount * supply) / poolValue;
+            lpTokens = (amount * supply) / poolValueBefore;
         }
+
+        usdc.safeTransferFrom(msg.sender, address(this), amount);
 
         totalDeposited += amount;
         _mint(msg.sender, lpTokens);
