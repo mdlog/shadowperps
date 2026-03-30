@@ -1,4 +1,4 @@
-import { ENGINE_URL, engineApi, type Candle, type PriceStreamUpdate } from "@/lib/engine-api";
+import { getEngineUrl, engineApi, type Candle, type PriceStreamUpdate } from "@/lib/engine-api";
 import {
   buildTradingViewResolvedSymbol,
   buildTradingViewSymbolsFromMarkets,
@@ -234,7 +234,7 @@ function stopRealtimeResources(subscription: RealtimeSubscriptionState): void {
 }
 
 function getPriceStreamUrl(): string {
-  return `${ENGINE_URL.replace(/\/$/, "")}/api/stream/prices`;
+  return `${getEngineUrl()}/api/stream/prices`;
 }
 
 function startPollingFallback(

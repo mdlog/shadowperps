@@ -4,7 +4,7 @@
 
 const DEFAULT_ENGINE_URL = "http://localhost:3010";
 
-function resolveEngineUrl() {
+export function getEngineUrl() {
   const configuredUrl = process.env.NEXT_PUBLIC_ENGINE_URL?.trim();
 
   if (configuredUrl) {
@@ -19,8 +19,6 @@ function resolveEngineUrl() {
     "NEXT_PUBLIC_ENGINE_URL is required for production builds. Point it to a public engine URL before deploying the frontend.",
   );
 }
-
-export const ENGINE_URL = resolveEngineUrl();
 
 // Types matching the Rust engine
 export interface Candle {
@@ -96,7 +94,7 @@ interface ApiResponse<T> {
 }
 
 async function fetchEngine<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${ENGINE_URL}${path}`, {
+  const res = await fetch(`${getEngineUrl()}${path}`, {
     ...options,
     headers: {
       "Content-Type": "application/json",
@@ -120,7 +118,7 @@ async function fetchEngine<T>(path: string, options?: RequestInit): Promise<T> {
 
 export const engineApi = {
   health: () =>
-    fetch(`${ENGINE_URL}/health`).then((r) => r.json()) as Promise<EngineHealth>,
+    fetch(`${getEngineUrl()}/health`).then((r) => r.json()) as Promise<EngineHealth>,
 
   getMarkets: () =>
     fetchEngine<Market[]>("/api/markets"),
