@@ -32,7 +32,7 @@
 - `requestClosePosition` -> `finalizeClosePosition` is live
 - Position **direction** and **size** are submitted as encrypted CoFHE inputs
 - Portfolio reads ciphertext handles from `ShadowPerps`, then decrypts locally in the wallet
-- Trade and portfolio use the on-chain oracle as the shared source of truth for entry and mark prices
+- The on-chain oracle drives entry validation and on-chain portfolio valuation when the deployed contract path is active; the order UI falls back to engine prices when the on-chain path is unavailable, while charts and market lists remain engine-powered
 
 ### Market Data
 
@@ -67,8 +67,8 @@
 
 ```text
 Frontend (Next.js 16, React 19)
-  wagmi + viem + @cofhe/sdk
-  local wallet-side decrypt
+  wagmi + viem + @cofhe/sdk + @cofhe/react
+  CofheReactProvider + local wallet-side decrypt helpers
   /api/cofhe/* proxy routes
          |
          | encrypted request/finalize flow
@@ -152,6 +152,7 @@ shadowperps-ui/
 │   │   ├── trading/              Chart, OrderPanel, PositionSummary
 │   │   ├── portfolio/            PositionList, PortfolioStats, RiskModule
 │   │   ├── layout/               Navbar, Footer
+│   │   ├── providers/            Web3Provider, CofheReactProvider
 │   │   └── ui/                   Button, Card, Input, Badge
 │   ├── hooks/
 │   │   ├── useOnChainTrading.ts  FHE encrypt + on-chain tx
@@ -159,18 +160,19 @@ shadowperps-ui/
 │   │   ├── useOnChainMarket.ts   Oracle price reads
 │   │   └── useEngine.ts          Rust engine API hooks
 │   └── lib/
-│       ├── fhenix.ts             CoFHE SDK wrapper
+│       ├── fhenix.ts             CoFHE helper adapter
 │       ├── contracts.ts          ABIs + addresses
 │       ├── wagmi.ts              Chain config
 │       └── engine-api.ts         Engine REST client
 ├── contracts/
+│   ├── deploy/                   Legacy hardhat-deploy scripts
+│   ├── scripts/                  Live + privacy-ready deployment scripts
 │   ├── src/
 │   │   ├── ShadowPerps.sol
 │   │   ├── ShadowPool.sol
 │   │   ├── ShadowPoolV2.sol
 │   │   ├── ConfidentialAssetVault.sol
 │   │   └── MockPriceOracle.sol
-│   └── scripts/
 ├── engine/
 │   └── src/
 │       ├── main.rs
@@ -245,12 +247,14 @@ npm run dev
 # Compile
 npm --prefix contracts run compile
 
-# Deploy live perps stack
-npm --prefix contracts run deploy:arb-sepolia
+# Deploy the current live perps + public pool stack
+cd contracts && npx hardhat run scripts/deploy.ts --network arbSepolia
 
 # Deploy privacy-ready LP scaffold
 npm --prefix contracts run deploy:privacy:arb-sepolia
 ```
+
+Note: `npm --prefix contracts run deploy:arb-sepolia` currently uses the legacy `hardhat-deploy` path under `contracts/deploy/001_deploy.ts` and is not the recommended command for the live v6 stack described above.
 
 ---
 
